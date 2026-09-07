@@ -13,6 +13,10 @@ const pool = new Pool({
     : false
 });
 
+// =========================
+// Basic API
+// =========================
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -34,7 +38,7 @@ app.get("/health", async (req, res) => {
     res.status(500).json({
       success: false,
       database: "disconnected",
-      error: error.message
+      status: "unhealthy"
     });
   }
 });
@@ -45,6 +49,48 @@ app.get("/api/test", (req, res) => {
     message: "Trust Key API test endpoint is working"
   });
 });
+
+// =========================
+// Meta / Facebook Webhook
+// =========================
+
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  const verifyToken = process.env.META_VERIFY_TOKEN;
+
+  if (mode === "subscribe" && token === verifyToken) {
+    console.log("META WEBHOOK VERIFIED");
+    return res.status(200).send(challenge);
+  }
+
+  console.log("META WEBHOOK VERIFICATION FAILED");
+  return res.sendStatus(403);
+});
+
+app.post("/webhook", async (req, res) => {
+  try {
+    console.log("META WEBHOOK EVENT:");
+    console.log(JSON.stringify(req.body, null, 2));
+
+    return res.status(200).json({
+      success: true,
+      received: true
+    });
+  } catch (error) {
+    console.error("Webhook error:", error);
+
+    return res.status(500).json({
+      success: false
+    });
+  }
+});
+
+// =========================
+// Start Server
+// =========================
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`Trust Key API running on port ${port}`);
